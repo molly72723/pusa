@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>悲喜莊入莊儀式</title>
+  
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 設定模組路徑，讓瀏覽器可以直接載入 React 與 Lucide Icons -->
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+      }
+    }
+  </script>
+  
+  <!-- 載入 Babel 編譯器，用來在瀏覽器中執行 JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* 將原本的 CSS 動畫移至 HTML 的 style 標籤中 */
+    @keyframes dash {
+      0% { stroke-dashoffset: 300; }
+      100% { stroke-dashoffset: 0; }
+    }
+    .animate-in { animation-duration: 0.7s; animation-fill-mode: both; }
+    .fade-in { animation-name: fadeIn; }
+    .slide-in-from-right { animation-name: slideInRight; }
+    .zoom-in { animation-name: zoomIn; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideInRight { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    
+    body, html {
+      margin: 0;
+      padding: 0;
+      background-color: #070202; /* 預設背景色避免嵌入時閃白 */
+    }
+  </style>
+</head>
+<body>
+  <!-- React 應用程式的掛載點 -->
+  <div id="root"></div>
+
+  <!-- 應用程式邏輯 -->
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect, useRef } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { Skull, Eye, Flame, Scroll, User, AlertCircle, RefreshCw, Moon, Ghost, Scissors, Crosshair, Mail, CheckCircle, Loader2, Volume2, VolumeX } from 'lucide-react';
+
+    // --- 測驗題目設定：囍菩薩入莊儀式 ---
+    const questions = [
+      {
+        id: 1,
+        text: "入莊之初，村長滿臉堆笑地遞上一條鮮紅的綢帶，說這是『囍菩薩』賜予的福分，要你繫在頸上，絕不可摘下。",
+        options: [
+          { label: "【順從】將紅綢緊緊繫好，感覺那股莫名的溫熱感在喉頭蔓延。", weight: { sacrifice: 2, zealot: 1 } },
+          { label: "【疑慮】婉拒並收入懷中，指尖卻悄悄摸索紅綢裡是否藏著細碎的骨灰。", weight: { observer: 2 } },
+          { label: "【對質】盯著村長的眼睛問：『這福分，是給活人的，還是給死人的？』", weight: { skeptic: 2 } },
+          { label: "【調包】接過紅綢，趁人不注意時轉手繫在路邊那尊沒臉的紙紮人身上。", weight: { betrayer: 2 } }
+        ]
+      },
+      {
+        id: 2,
+        text: "二皮匠攔住你的去路，他手中握著骨針，眼神空洞。他說：『你的靈魂走樣了，需不需要我幫你縫兩針？』",
+        options: [
+          { label: "【接受】沈默地伸出手，任由他在你的指縫間交叉縫上鮮紅的棉線。", weight: { sacrifice: 1, zealot: 2 } },
+          { label: "【駁斥】冷眼看著他：『皮相不過是具臭袋子，你要，就拿去。』", weight: { skeptic: 2 } },
+          { label: "【交易】反問他：『若我給你一張更好的人皮（隊友的），你能帶我走密道嗎？』", weight: { betrayer: 2 } },
+          { label: "【觀察】視線死鎖他手中骨針，記下他縫補皮囊的特定頻率與手法。", weight: { observer: 2 } }
+        ]
+      },
+      {
+        id: 3,
+        text: "牆縫中隱約傳來小孩的嬉笑，幾雙黑洞洞的眼睛在暗處窺伺。祂們竊竊私語：『看吶，新的紙人來了...』",
+        options: [
+          { label: "【避邪】感到一陣寒意，立刻閉眼默誦莊規，祈求那尊不知名的神明庇佑。", weight: { sacrifice: 2 } },
+          { label: "【共鳴】對著牆縫露出一抹比祂們更詭異的微笑，模仿小孩的語氣與之交談。", weight: { zealot: 2 } },
+          { label: "【鎮壓】拿出一根黑墨斗線拉直，對著牆縫狠狠彈出一道充滿煞氣的黑印。", weight: { skeptic: 2 } },
+          { label: "【紀錄】在心中標記小孩出現的位置，這很可能是莊內「生位」與「死位」的標誌。", weight: { observer: 2 } }
+        ]
+      },
+      {
+        id: 4,
+        text: "村長帶你來到墨斗陣前，要你跨過那些縱橫交錯的黑線。他說這能『濾除凡塵穢氣』，但黑線在微微顫動。",
+        options: [
+          { label: "【盲從】深信村長的說法，屏氣凝神，小心翼翼地跨過所有黑線。", weight: { sacrifice: 1, zealot: 1 } },
+          { label: "【破壞】故意在跨越時假裝重心不穩，扯斷一根線，看村長的臉色如何變換。", weight: { betrayer: 2 } },
+          { label: "【分析】測量黑線交織的陣法，判斷這是在保護莊民，還是在軟禁靈魂。", weight: { observer: 2 } },
+          { label: "【拆穿】拒絕跨越，冷笑：『這明明是鎮壓厲鬼用的「困魂陣」，村長，你在防誰？』", weight: { skeptic: 2 } }
+        ]
+      },
+      {
+        id: 5,
+        text: "祠堂內，『囍菩薩』神像半哭半笑。村長要你與其中一個紙紮人對拜。對拜時，你感覺紙紮人的手搭在了你肩上。",
+        options: [
+          { label: "【虔誠】誠心對拜，感覺自己的生命氣息似乎正在緩緩流入那個紙人體內。", weight: { sacrifice: 2, zealot: 1 } },
+          { label: "【驅鬼】對拜的瞬間，反手將一張破煞符死死貼在紙紮人的心口處。", weight: { skeptic: 2 } },
+          { label: "【威脅】趁著彎腰，低聲對紙人說：『你想活命嗎？把村長的秘密告訴我。』", weight: { betrayer: 2 } },
+          { label: "【探究】凝視紙紮人的眼睛，試圖辨認那是畫上去的，還是真人的眼球。", weight: { observer: 2 } }
+        ]
+      },
+      {
+        id: 6,
+        text: "乩童突然發狂，吐出帶血的黑水，手指向你：『囍菩薩降旨，你這具軀殼，神很滿意！』村民們開始圍攏。",
+        options: [
+          { label: "【崩潰】驚懼地縮向村長身後：『村長救我！我不想死在這裡！』", weight: { sacrifice: 2 } },
+          { label: "【入邪】大聲狂笑，主動向乩童張開雙臂：『神要我，那便拿去！我是祂唯一的乩身！』", weight: { zealot: 3 } },
+          { label: "【破綻】冷冷指出乩童藏在袖子裡的噴血包，當眾揭露這場荒唐的表演。", weight: { skeptic: 2 } },
+          { label: "【潛伏】在人群騷動時，悄悄潛向祠堂後方的陰影，尋找最優撤退路線。", weight: { observer: 1, betrayer: 1 } }
+        ]
+      },
+      {
+        id: 7,
+        text: "你在密室發現全莊人的名字都寫在紙人背後，包括你的。村長此時推門而入，滿臉猙獰：『都被你看到了？』",
+        options: [
+          { label: "【質問】絕望地看著他：『我那麼信任你，你竟然把我們全當成祭品？』", weight: { sacrifice: 2 } },
+          { label: "【反殺】立刻拿起碎瓷片燒毀印有自己名字的紙人，並對村長發動突襲。", weight: { skeptic: 1, betrayer: 2 } },
+          { label: "【臣服】跪在村長面前：『我也想長生...讓我當您的左右手，一起統治這裡。』", weight: { betrayer: 2, zealot: 1 } },
+          { label: "【威脅】冷靜舉起一張寫著村長生辰八字的紙人：『村長，你要不要先看看這張？』", weight: { observer: 2 } }
+        ]
+      },
+      {
+        id: 8,
+        text: "『囍菩薩』祭典高潮，村長逼你喝下『長生酒』。酒液黏稠發臭，甚至在杯中微微蠕動。",
+        options: [
+          { label: "【自盡】為救其他人而喝下，感受內臟被千萬隻蟲子囓咬的劇痛。", weight: { sacrifice: 3 } },
+          { label: "【詐死】趁亂將酒倒入身後的墨斗缸中，假裝痛苦倒地，觀察局面。", weight: { betrayer: 2 } },
+          { label: "【鑑識】輕抿一口即吐出，瞬間分析出這是由屍水與特定鉛汞調配出的幻藥。", weight: { observer: 2 } },
+          { label: "【抗命】奪過酒杯狠狠砸向神像：『這種邪物，只有你這種瘋子才會喝！』", weight: { skeptic: 2 } }
+        ]
+      },
+      {
+        id: 9,
+        text: "囍菩薩神像崩裂，露出了真身——那是由無數小孩的肢體拼湊而成的肉球神，祂在哭，也在笑。",
+        options: [
+          { label: "【驚醒】瘋狂地想要逃離這座莊園，這根本不是救贖，是純粹的惡意。", weight: { skeptic: 2, sacrifice: 1 } },
+          { label: "【崇拜】跪地狂呼，認為這才是生命的極致融合，是肉體的永恆歸宿。", weight: { zealot: 3 } },
+          { label: "【紀錄】在極致的恐懼中依然保持觀察，尋找肉球的核心『神格』所在。", weight: { observer: 2 } },
+          { label: "【奪權】思考如果我能取代村長成為這怪物的操縱者，我將掌控生死。", weight: { betrayer: 3 } }
+        ]
+      },
+      {
+        id: 10,
+        text: "最後一步：跳入那團泛著綠光的『祭火』中。村長說這能讓你徹底洗盡凡塵，重獲新生。",
+        options: [
+          { label: "【悲壯】為了隊友的生機，含淚跳入火海，成為最後的犧牲品。", weight: { sacrifice: 3 } },
+          { label: "【拖行】拉住村長的衣領，在他的驚恐慘叫聲中一起墜入祭火中。", weight: { betrayer: 3 } },
+          { label: "【破陣】引導祠堂外的墨斗陣坍塌，引水滅火，徹底毀掉祭壇。", weight: { skeptic: 3 } },
+          { label: "【飛昇】滿懷虔誠地躍入火中，深信自己將在囍菩薩的腹中永生。", weight: { zealot: 3 } }
+        ]
+      }
+    ];
+
+    // --- 結果詳細解析 ---
+    const resultsData = {
+      sacrifice: { title: "紅綢替命客", tagline: "以我之悲，續他人之命。", desc: "喔呀喔呀，這不是我們最偉大、最讓人『想哭』的聖母大人嗎？你那氾濫的慈悲簡直是這座莊園最美味的零食。村長餵你毒藥，你竟然還想著幫他擦杯子？在悲喜莊，你就是那條最紅、最扎眼的紅綢，雖然照亮了別人，但最後只會被囍菩薩慢慢勒死。不過說真的，在這種大家都想活命的地獄，你這種甘願去死的笨蛋，確實是讓人心碎的英雄呢。" },
+      betrayer: { title: "斷線二皮匠", tagline: "只要能活，連神明我都能縫入皮囊。", desc: "嘖嘖，瞧瞧這顆比墨斗線還黑的心。對你來說，隊友、村長、甚至是囍菩薩，都不過是你通往『生存』這扇大門的墊腳石吧？你這傢伙連靈魂都透著一股『反水』的騷味，在關鍵時刻賣掉隊友大概連眼皮都不會跳一下。但別誤會，我這是在稱讚你。在這場祭典裡，唯有像你這樣不被道德束縛的狂徒，才最有資格嘲笑那尊肉球神。" },
+      zealot: { title: "囍菩薩乩身", tagline: "神在我的皮下起舞，我在神的腹中狂笑。", desc: "哈！哈哈哈哈！歡迎回家，我的狂信徒！你的大腦早就被囍菩薩的低語攪成了漿糊吧？看到肉球怪物竟然覺得那是『極致的美』，你這病得不輕的靈魂簡直是為了這場恐怖劇本而生的！你是全莊最危險的定時炸彈，因為你根本不求生，你只求那種毀滅一切的儀式感。既然這麼愛笑，那就讓這世界陪你一起笑到斷氣吧！" },
+      skeptic: { title: "墨斗守規人", tagline: "邏輯是鎖，封印一切無知與恐懼。", desc: "唉，真是個無趣的推土機。在這麼有氛圍的祭典裡，你竟然在拆穿機關？你難道不知道恐懼才是這場戲的精華嗎？你冷靜得像塊泡在冰水裡的骨頭，連村長的演技在你眼裡都只是一串低級代碼。你的存在就是為了戳破大家的幻想泡泡，是團隊唯一的生機，卻也是囍菩薩最恨的異教徒。雖然很可靠，但在莊園裡，你挺不討喜的。" },
+      observer: { title: "窺窗影中人", tagline: "我在窗外看戲，直到所有人淪為背景。", desc: "沈默、沈默、再沈默...你這傢伙簡直像個活著的幽靈。你收集了全場的秘密，卻在那裡看大家演戲，你是想等所有人死光了才寫這場『悲喜莊週報』嗎？牆縫裡那些小孩看你都覺得親切，因為你跟祂們一樣，喜歡躲在陰影裡冷冷地紀錄別人的崩潰。如果你開口，這座莊園大概會瞬間崩毀，但你選擇看戲，這才是最惡趣味的瘋狂。" }
+    };
+
+    // --- 重繪的邪門符頭 (SVG) ---
+    const TalismanHeader = () => (
+      <div className="flex flex-col items-center mb-8 select-none pointer-events-none relative z-0">
+        <div className="relative">
+          <div className="absolute inset-0 bg-[#5a0b0b]/40 blur-xl rounded-full scale-150"></div>
+          <div className="relative border-[4px] border-[#4a0505] p-1 bg-[#d4c39e] transform -rotate-3 shadow-md">
+            <div className="border-[2px] border-[#4a0505] px-3 py-4 flex flex-col items-center justify-center bg-[#c7b58c]">
+              <span className="text-5xl font-black text-[#4a0505] leading-none" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>勅令</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* 道教狂亂符籙線條 */}
+        <svg viewBox="0 0 120 160" className="w-24 h-32 text-[#4a0505] stroke-current stroke-[4] fill-none mt-2 filter drop-shadow-[0_2px_2px_rgba(74,5,5,0.4)]">
+          <path d="M60,0 C10,30 110,60 60,90 C10,120 110,140 60,160" strokeLinecap="round" className="animate-[dash_3s_ease-in-out_infinite_alternate]" style={{ strokeDasharray: '300', strokeDashoffset: '0', animation: 'dash 3s ease-in-out infinite alternate' }} />
+          <path d="M30,20 Q10,40 40,60" strokeLinecap="round" />
+          <path d="M90,20 Q110,40 80,60" strokeLinecap="round" />
+          <path d="M45,70 L75,70 M35,85 L85,85 M45,100 L75,100" strokeWidth="5" />
+          <circle cx="60" cy="150" r="5" className="fill-[#4a0505]" />
+          <circle cx="35" cy="120" r="3" className="fill-[#4a0505]" />
+          <circle cx="85" cy="120" r="3" className="fill-[#4a0505]" />
+        </svg>
+      </div>
+    );
+
+    const App = () => {
+      const [stage, setStage] = useState('landing');
+      const [profile, setProfile] = useState({ name: '', gender: '', triggers: '' });
+      const [currentIdx, setCurrentIdx] = useState(0);
+      const [scores, setScores] = useState({ sacrifice: 0, betrayer: 0, zealot: 0, skeptic: 0, observer: 0 });
+      const [finalResult, setFinalResult] = useState(null);
+      const [isSubmitting, setIsSubmitting] = useState(false);
+      const [isSubmitted, setIsSubmitted] = useState(false);
+      const [audioError, setAudioError] = useState(false);
+      
+      // Audio State
+      const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+      const audioRef = useRef(null);
+
+      // Dropbox 直連格式
+      const musicUrl = "https://www.dropbox.com/scl/fi/lkqmj2v2ervz6r95wfbi1/.mp3?rlkey=cok5oczmvf47v71xf9g68x2l7&st=5cjfzmix&raw=1";
+
+      useEffect(() => {
+        const audio = new Audio(musicUrl);
+        audio.loop = true;
+        audioRef.current = audio;
+        
+        const handleError = (e) => {
+          console.error("音訊加載錯誤，請檢查連結：", e);
+          setAudioError(true);
+        };
+
+        const handleCanPlay = () => setAudioError(false);
+
+        audio.addEventListener('error', handleError);
+        audio.addEventListener('canplaythrough', handleCanPlay);
+
+        return () => {
+          if (audio) {
+            audio.pause();
+            audio.removeEventListener('error', handleError);
+            audio.removeEventListener('canplaythrough', handleCanPlay);
+          }
+        };
+      }, []);
+
+      const toggleMusic = () => {
+        if (!audioRef.current) return;
+        if (isMusicPlaying) {
+          audioRef.current.pause();
+          setIsMusicPlaying(false);
+        } else {
+          audioRef.current.play().then(() => {
+            setIsMusicPlaying(true);
+            setAudioError(false);
+          }).catch(e => console.error("播放受阻：", e));
+        }
+      };
+
+      const startQuiz = () => {
+        if (audioRef.current && !audioError) {
+          audioRef.current.play().then(() => setIsMusicPlaying(true)).catch(() => {});
+        }
+        setStage('profile');
+      };
+      
+      const handleProfileSubmit = (e) => {
+        e.preventDefault();
+        if (profile.name.trim()) setStage('quiz');
+      };
+
+      const handleAnswer = (weight) => {
+        const newScores = { ...scores };
+        Object.keys(weight).forEach(key => {
+          newScores[key] += (weight[key] || 0);
+        });
+        setScores(newScores);
+
+        if (currentIdx < questions.length - 1) {
+          setCurrentIdx(currentIdx + 1);
+        } else {
+          determineResult(newScores);
+        }
+      };
+
+      const determineResult = (finalScores) => {
+        let maxType = 'observer';
+        let maxVal = -1;
+        Object.keys(finalScores).forEach(key => {
+          if (finalScores[key] > maxVal) {
+            maxVal = finalScores[key];
+            maxType = key;
+          }
+        });
+        setFinalResult({ ...resultsData[maxType], type: maxType });
+        setStage('result');
+      };
+
+      const handleFinalSubmit = () => {
+        setIsSubmitting(true);
+        const headers = ["測驗時間", "玩家名諱", "靈魂陰陽", "忌諱雷點", "覺醒形態", "靈魂判詞", "犧牲權重", "背叛權重", "信仰權重", "理性權重", "觀察權重"];
+        const row = [new Date().toLocaleString(), profile.name, profile.gender, profile.triggers, finalResult.title, finalResult.tagline, scores.sacrifice, scores.betrayer, scores.zealot, scores.skeptic, scores.observer];
+        const csvContent = "\uFEFF" + headers.join(",") + "\n" + row.join(",");
+
+        setTimeout(() => {
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", `悲喜莊_索命符_${profile.name}.csv`);
+          link.click();
+          setIsSubmitting(false);
+          setIsSubmitted(true);
+        }, 2000);
+      };
+
+      return (
+        <div className="min-h-screen text-[#4a0505] font-serif flex flex-col items-center justify-center p-4 selection:bg-[#4a0505] selection:text-[#d4c39e] overflow-hidden relative">
+          
+          {/* 邪門背景裝飾 */}
+          <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(90,0,0,0.15)_0%,transparent_80%)]"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full flex items-center justify-center opacity-[0.04] select-none">
+              <span className="text-[40rem] font-black text-[#ff0000] blur-sm leading-none">囍</span>
+            </div>
+            <div className="absolute top-[10%] left-[10%] opacity-10 rotate-12"><Skull size={80} className="text-[#8b0000]" /></div>
+            <div className="absolute bottom-[20%] right-[10%] opacity-10 -rotate-12"><Ghost size={100} className="text-[#8b0000]" /></div>
+          </div>
+
+          {/* 音樂控制 */}
+          <div className="fixed top-4 right-4 z-50 flex flex-col items-center gap-1">
+            <button 
+              onClick={toggleMusic}
+              className={`p-3 bg-[#2a0505] border-2 border-[#5a0b0b] rounded-none shadow-[4px_4px_0_#5a0b0b] hover:bg-[#5a0b0b] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_#5a0b0b] transition-all text-[#d4c39e] ${audioError ? 'opacity-50' : ''}`}
+              title={isMusicPlaying ? "靜音" : "播放招魂曲"}
+            >
+              {isMusicPlaying ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            </button>
+          </div>
+
+          {/* 符咒主體 */}
+          <div className="relative z-10 w-full max-w-md bg-[#c7b58c] border-[8px] border-[#2a0505] shadow-[0_0_60px_rgba(100,0,0,0.3),inset_0_0_80px_rgba(50,0,0,0.3)] min-h-[750px] flex flex-col transform rotate-[1deg] rounded-none">
+            
+            <div className="absolute inset-0 border-4 border-[#8b0000]/20 pointer-events-none mix-blend-multiply"></div>
+
+            {stage === 'quiz' && (
+              <div className="h-2 w-full bg-[#3a0505]/20 overflow-hidden relative border-b-2 border-[#5a0b0b]">
+                <div 
+                  className="h-full bg-[#8b0000] shadow-[0_0_15px_#ff0000]" 
+                  style={{width: `${((currentIdx+1)/questions.length)*100}%`}}
+                ></div>
+              </div>
+            )}
+
+            <div className="p-6 md:p-8 flex-1 flex flex-col relative z-10">
+              <TalismanHeader />
+
+              {stage === 'landing' && (
+                <div className="text-center space-y-12 animate-in fade-in flex-1 flex flex-col justify-center">
+                  <div className="space-y-6">
+                    <h1 className="text-6xl font-black tracking-[0.2em] text-[#3a0505] drop-shadow-[2px_2px_0px_#8b0000]">囍菩薩</h1>
+                    <h2 className="text-2xl font-bold border-y-[3px] border-[#4a0505] py-3 tracking-[0.4em] uppercase text-[#4a0505]">
+                      入莊索命符
+                    </h2>
+                    <div className="bg-[#4a0505]/10 p-4 border border-[#4a0505]/30">
+                      <p className="text-[#3a0505] text-sm italic font-black tracking-widest leading-loose">
+                        「符紙一燃，因果兩清。<br/>入局莫問，生死自負。」
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={startQuiz}
+                    className="w-full py-5 border-[3px] border-[#3a0505] text-[#3a0505] bg-transparent hover:bg-[#3a0505] hover:text-[#d4c39e] transition-all uppercase tracking-[1em] font-black text-2xl shadow-[6px_6px_0_#3a0505] hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-[2px_2px_0_#3a0505] rounded-none"
+                  >
+                    焚香請命
+                  </button>
+                </div>
+              )}
+
+              {stage === 'profile' && (
+                <div className="space-y-8 animate-in slide-in-from-right flex-1">
+                  <div className="text-center border-b-[3px] border-[#3a0505] pb-3">
+                    <h2 className="text-3xl font-black tracking-[0.3em] text-[#3a0505]">生死簿</h2>
+                  </div>
+                  <form onSubmit={handleProfileSubmit} className="space-y-8">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black tracking-widest text-[#3a0505]/80">靈魂名諱</label>
+                      <input 
+                        required type="text" value={profile.name}
+                        onChange={(e) => setProfile({...profile, name: e.target.value})}
+                        className="w-full bg-transparent border-b-[3px] border-[#3a0505] p-3 text-2xl text-[#3a0505] focus:outline-none font-black placeholder-[#3a0505]/30"
+                        placeholder="刻下姓名"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black tracking-widest text-[#3a0505]/80">陰陽屬性</label>
+                      <div className="flex gap-4">
+                        {['乾(女)', '坤(男)'].map(g => (
+                          <button
+                            key={g} type="button" onClick={() => setProfile({...profile, gender: g})}
+                            className={`flex-1 py-4 text-xl border-[3px] ${profile.gender === g ? 'bg-[#3a0505] text-[#d4c39e] shadow-[inset_0_0_10px_#000]' : 'border-[#3a0505] text-[#3a0505] bg-transparent shadow-[4px_4px_0_#3a0505]'} transition-all font-black rounded-none`}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black tracking-widest text-[#3a0505]/80">生前忌諱 (雷點)</label>
+                      <textarea 
+                        value={profile.triggers}
+                        onChange={(e) => setProfile({...profile, triggers: e.target.value})}
+                        className="w-full bg-transparent border-[3px] border-[#3a0505] p-4 text-[#3a0505] focus:outline-none h-28 text-base resize-none font-bold placeholder-[#3a0505]/30 shadow-[inset_0_0_5px_rgba(0,0,0,0.2)]"
+                        placeholder="寫下恐懼 (如: 黑暗, 幼童)..."
+                      />
+                    </div>
+                    <button type="submit" className="w-full py-5 bg-[#3a0505] text-[#d4c39e] font-black text-2xl hover:bg-[#5a0b0b] transition-all tracking-[0.8em] shadow-[6px_6px_0_#1a0000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0_#1a0000] rounded-none">
+                      落筆定局
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {stage === 'quiz' && (
+                <div className="space-y-8 animate-in fade-in flex-1">
+                  <div className="flex justify-between items-center text-sm font-black tracking-[0.2em] border-b-2 border-[#3a0505] pb-2 text-[#3a0505]">
+                    <span>第 {currentIdx + 1} 魂 / 共 {questions.length}</span>
+                    <span className="flex items-center gap-2"><Flame size={16} className="animate-pulse text-[#8b0000]" /> 祭火未熄</span>
+                  </div>
+                  
+                  <div className="space-y-10">
+                    <h2 className="text-2xl font-black leading-loose border-l-[6px] border-[#3a0505] pl-5 text-[#2a0505]">
+                      {questions[currentIdx].text}
+                    </h2>
+
+                    <div className="space-y-5">
+                      {questions[currentIdx].options.map((opt, i) => (
+                        <button
+                          key={i} onClick={() => handleAnswer(opt.weight)}
+                          className="w-full p-5 text-left border-[3px] border-[#3a0505] bg-transparent hover:bg-[#3a0505] hover:text-[#d4c39e] transition-all text-lg font-black relative group shadow-[4px_4px_0_#3a0505] hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-[1px_1px_0_#3a0505] rounded-none text-[#3a0505]"
+                        >
+                          <span className="relative z-10 leading-relaxed">{opt.label}</span>
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Crosshair size={24} />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {stage === 'result' && finalResult && (
+                <div className="text-center space-y-10 animate-in zoom-in">
+                  <div className="space-y-4">
+                    <p className="text-xs tracking-[1.5em] font-black uppercase text-[#3a0505]">判詞已落</p>
+                    <h1 className="text-6xl font-black tracking-tighter text-[#3a0505] drop-shadow-[3px_3px_0px_#8b0000]">
+                      {finalResult.title}
+                    </h1>
+                    <div className="pt-2">
+                      <p className="bg-[#3a0505] text-[#d4c39e] px-5 py-2 text-xl font-black tracking-widest inline-block shadow-[4px_4px_0_#1a0000]">
+                        「 {finalResult.tagline} 」
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-[3px] border-[#3a0505] p-6 text-left space-y-6 bg-[#c2b087] shadow-[inset_0_0_15px_rgba(0,0,0,0.2)]">
+                    <div className="flex justify-between items-center text-sm font-black border-b-[3px] border-[#3a0505] pb-3 text-[#3a0505]">
+                      <span>莊客：{profile.name}</span>
+                      <span>靈相：{profile.gender}</span>
+                    </div>
+                    <p className="text-lg leading-loose font-black text-[#2a0505] indent-8 text-justify">
+                      {finalResult.desc}
+                    </p>
+                    
+                    {!isSubmitted ? (
+                      <div className="pt-6 space-y-4">
+                        <p className="text-xs font-black text-center text-[#5a0b0b]">
+                          靈魂將被封裝，呈遞至守墓人 <br/> <span className="underline decoration-2">molly89727@gmail.com</span>
+                        </p>
+                        <button 
+                          onClick={handleFinalSubmit} disabled={isSubmitting}
+                          className="w-full py-5 border-[3px] border-[#3a0505] text-[#d4c39e] bg-[#3a0505] font-black hover:bg-[#5a0b0b] transition-all flex items-center justify-center space-x-4 tracking-[0.5em] text-xl shadow-[4px_4px_0_#1a0000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_#1a0000]"
+                        >
+                          {isSubmitting ? <Loader2 className="animate-spin" /> : <><Mail size={24} /><span>上呈判詞</span></>}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="pt-6 flex flex-col items-center space-y-3 text-[#3a0505] animate-in fade-in">
+                        <CheckCircle size={48} />
+                        <p className="font-black text-2xl tracking-widest">入冊成功</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      setStage('landing');
+                      setCurrentIdx(0);
+                      setScores({ sacrifice: 0, betrayer: 0, zealot: 0, skeptic: 0, observer: 0 });
+                      setIsSubmitted(false);
+                    }}
+                    className="flex items-center justify-center space-x-3 mx-auto text-[#3a0505] hover:text-[#8b0000] transition-colors text-sm tracking-[0.5em] font-black pt-4 uppercase group"
+                  >
+                    <RefreshCw size={18} className="group-hover:rotate-180 transition-transform duration-1000" />
+                    <span>投胎重來</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="h-12 bg-[#2a0505] flex items-center justify-around px-8 border-t-4 border-[#4a0505]">
+              <Eye size={18} className="text-[#d4c39e] opacity-40" />
+              <div className="text-[#d4c39e] text-xs font-black tracking-[0.8em]">因果自負</div>
+              <Eye size={18} className="text-[#d4c39e] opacity-40" />
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const root = createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
